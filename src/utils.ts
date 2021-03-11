@@ -48,42 +48,46 @@ async function ethereumRequest(
   method: string,
   params: string[]
 ): Promise<any> {
-  // If ethereum.request() exists, the provider is probably EIP-1193 compliant.
-  if (ethereum.request) {
-    return ethereum.request({ method, params }).then(rpcResult)
-  }
+  try {
+    // If ethereum.request() exists, the provider is probably EIP-1193 compliant.
+    if (ethereum.request) {
+      return ethereum.request({ method, params }).then(rpcResult)
+    }
 
-  // This is specific to some older versions of MetaMask combined with Web3.js.
-  if (ethereum.sendAsync && ethereum.selectedAddress) {
-    return new Promise((resolve, reject) => {
-      ethereum.sendAsync(
-        {
-          method,
-          params,
-          from: ethereum.selectedAddress,
-          jsonrpc: '2.0',
-          id: 0,
-        },
-        (err: Error, result: any) => {
-          if (err) {
-            reject(err)
-          } else {
-            resolve(result)
+    // This is specific to some older versions of MetaMask combined with Web3.js.
+    if (ethereum.sendAsync && ethereum.selectedAddress) {
+      return new Promise((resolve, reject) => {
+        ethereum.sendAsync(
+          {
+            method,
+            params,
+            from: ethereum.selectedAddress,
+            jsonrpc: '2.0',
+            id: 0,
+          },
+          (err: Error, result: any) => {
+            if (err) {
+              reject(err)
+            } else {
+              resolve(result)
+            }
           }
-        }
-      )
-    }).then(rpcResult)
+        )
+      }).then(rpcResult)
+    }
+
+    // If none of the previous two exist, we assume the provider is pre EIP-1193,
+    // using .send() rather than .request().
+    if (ethereum.send) {
+      return ethereum.send(method, params).then(rpcResult)
+    }
+  } catch (error) {
+    console.log('error', error)
   }
 
-  // If none of the previous two exist, we assume the provider is pre EIP-1193,
-  // using .send() rather than .request().
-  if (ethereum.send) {
-    return ethereum.send(method, params).then(rpcResult)
-  }
-
-  throw new Error(
-    'The Ethereum provider doesn’t seem to provide a request method.'
-  )
+  // throw new Error(
+  //   'The Ethereum provider doesn’t seem to provide a request method.'
+  // )
 }
 
 export async function getAccountIsContract(
